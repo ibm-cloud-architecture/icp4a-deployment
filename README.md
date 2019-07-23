@@ -13,7 +13,7 @@ You will need [Ansible](https://www.ansible.com/) installed to run the install a
 
 ---
 
-## Install ICP4A on ICP
+## Install the Cloud Pak on ICP
 Install and deployment for the components in blue on the dependency diagram below are addressed by the scripts under the `icp` directory:
 
 ![Install dependencies](icp4a-install-dependencies.png)
