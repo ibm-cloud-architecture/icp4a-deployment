@@ -9,8 +9,7 @@ Check-out the [denim-compute](https://github.com/ibm-cloud-architecture/denim-co
 ---
 
 ## Install Ansible
-You will need [Ansible](https://www.ansible.com/) installed to run the install and deployment scripts.
-You can use the simple [Ansible installation script](https://github.com/ibm-cloud-architecture/icp4a-deployment/blob/master/icp/install-ansible.sh) to set it up on the VM from which you'll run the scripts.
+You will need [Ansible](https://www.ansible.com/) installed to run the install and deployment scripts. You can use the simple [Ansible installation script](https://github.com/ibm-cloud-architecture/icp4a-deployment/blob/master/icp/install-ansible.sh) to set it up on the VM from which you'll run the scripts.
 
 ---
 
