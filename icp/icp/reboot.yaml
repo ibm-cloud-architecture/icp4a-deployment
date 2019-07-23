@@ -1,0 +1,4 @@
+- hosts: master:worker:proxy:management
+  tasks:
+    - name: reboot
+      reboot:

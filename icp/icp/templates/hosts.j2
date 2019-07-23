@@ -1,0 +1,19 @@
+[master]
+{% for host in groups['master'] %}
+{{ host }}
+{% endfor %}
+
+[worker]
+{% for host in groups['worker'] %}
+{{ host }}
+{% endfor %}
+
+[proxy]
+{% for host in groups['proxy'] %}
+{{ host }}
+{% endfor %}
+
+[management]
+{% for host in groups['management'] %}
+{{ host }}
+{% endfor %}

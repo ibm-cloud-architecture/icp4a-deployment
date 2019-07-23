@@ -1,0 +1,110 @@
+- hosts: nfs
+  remote_user: root
+  tasks:
+    - name: Init NFS Folders
+      block:
+      - name: Creates directory {{ pv_root_folder }}/kafka-my-bai-pv-0
+        file:
+          path: "{{ pv_root_folder }}/kafka-my-bai-pv-0"
+          owner: '65534'
+          state: directory
+      - name: Creates directory {{ pv_root_folder }}/kafka-my-bai-pv-1
+        file:
+          path: "{{ pv_root_folder }}/kafka-my-bai-pv-1"
+          owner: '65534'
+          state: directory
+      - name: Creates directory {{ pv_root_folder }}/kafka-my-bai-pv-2
+        file:
+          path: "{{ pv_root_folder }}/kafka-my-bai-pv-2"
+          owner: '65534'
+          state: directory
+      - name: Creates directory {{ pv_root_folder }}/kafka-my-bai-pv-3
+        file:
+          path: "{{ pv_root_folder }}/kafka-my-bai-pv-3"
+          owner: '65534'
+          state: directory
+      - name: Creates directory {{ pv_root_folder }}/kafka-my-bai-pv-4
+        file:
+          path: "{{ pv_root_folder }}/kafka-my-bai-pv-4"
+          owner: '65534'
+          state: directory
+      - name: Creates directory {{ pv_root_folder }}/kafka-my-bai-pv-5
+        file:
+          path: "{{ pv_root_folder }}/kafka-my-bai-pv-5"
+          owner: '65534'
+          state: directory
+      tags:
+      - init_nfs
+
+- hosts: boot
+  remote_user: root
+  tasks:
+    - name: Install ICP CLI
+      include: tasks/install-icp-cli.yaml
+      tags:
+      - install_cli
+
+    - name: Checking if the Helm Chart is loaded
+      shell: |
+        status=$(curl -sk --head https://{{ icp_server }}/helm-repo/requiredAssets/ibm-eventstreams-prod-1.2.0.tgz | head -n 1)
+        echo $status
+      register: helm_chart_status
+      run_once: true
+      tags:
+      - test_helm_chart
+
+    - name: Load Event Streams Helm Chart
+      command: cloudctl catalog load-archive --archive {{ install_file }}
+      when: helm_chart_status.stdout.find("404") != -1
+      tags:
+      - load_event_streams
+
+    - name: Create namespace {{ namespace }}
+      shell: |
+        kubectl create namespace {{ namespace }}
+        kubectl -n {{ namespace }} create rolebinding ibm-restricted-clustrrole-rolebinding --clusterrole=ibm-restricted-clusterrole --group=system:serviceaccounts:{{ namespace }}
+      ignore_errors: yes
+      tags:
+      - create_namespace
+
+    - name: Create Docker Pull Secret
+      shell: |
+        kubectl create secret docker-registry regcred --docker-server={{ register_server }} --docker-username={{ admin_name }} --docker-password={{ admin_password }} -n {{ namespace }}
+        kubectl patch serviceaccount default -p '{"imagePullSecrets": [{"name": "regcred"}]}' --namespace={{ namespace }}
+      ignore_errors: yes
+      tags:
+      - create_secret
+
+    - name: Apply Image Policy
+      block:
+      - name: Prepare image-policy from template
+        template:
+          src: templates/image-policy.yaml.j2
+          dest: /root/image-policy.yaml
+      - name: Apply image-policy.yaml
+        shell: |
+          kubectl create -f /root/image-policy.yaml
+      tags:
+      - apply_image_policy
+
+    - name: Create PV in ICP
+      block:
+      - name: Prepare pv yaml from template
+        template:
+          src: templates/pv.yaml.j2
+          dest: /root/pv.yaml
+      - name: Create PV
+        shell: |
+          kubectl create -f /root/pv.yaml
+      tags:
+      - create_pv
+
+    - name: Deploy Event Streams
+      shell: |
+        rm -rf /root/ibm-eventstreams-prod-1.2.0.tgz
+        curl -kLo /root/ibm-eventstreams-prod-1.2.0.tgz  https://{{ icp_server }}/helm-repo/requiredAssets/ibm-eventstreams-prod-1.2.0.tgz
+        helm install /root/ibm-eventstreams-prod-1.2.0.tgz --name {{ package_name }} --namespace {{ namespace }} --set license=accept,global.image.repository={{ register_server }}/default/,global.image.pullSecret=regcred,kafka.resources.limits.cpu=500m,kafka.resources.limits.memory=1Gi,kafka.resources.requests.cpu=500m,kafka.resources.requests.memory=1Gi,persistence.enabled=true,persistence.dataPVC.size=4Gi,zookeeper.resources.limits.cpu=80m,zookeeper.resources.requests.cpu=80m,zookeeper.persistence.enabled=true,zookeeper.dataPVC.size=4Gi --tls
+      environment:
+        HELM_HOME: /root/.helm
+      tags:
+      - deploy_event_streams

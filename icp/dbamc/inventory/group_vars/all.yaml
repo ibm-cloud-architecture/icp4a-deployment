@@ -1,0 +1,24 @@
+# variables for all hosts
+
+icp_server: 172.16.52.215:8443
+api_server: 172.16.52.215:8001
+nfs_server: 172.16.52.212
+register_server: dbamc.icp:8500
+admin_name: admin
+admin_password: admin
+dbamc_install_file: /downloads/ICP4A-19.0.1.tgz
+kube_certs_folder: /opt/ibm-cloud-private-3.1.2/cluster/cfc-certs/kubernetes
+helm_certs_folder: /opt/ibm-cloud-private-3.1.2/cluster/cfc-certs/helm
+helm_release_file: ibm-dba-multicloud-prod-3.0.0.tgz
+image_tag: 19.0.1
+
+namespace: dbamc-test2
+package_name: dbamc-test2
+pv_path: /data/persistentvolumes/ibacc-test2-pv
+pv_name: ibacc-test2-pv
+pvc_name: ibacc-test2-pvc
+
+# For 18.0.2
+# dbamc_install_file: /downloads/DBAMC-18.0.2.tgz
+# helm_release_file: ibm-dba-multicloud-prod-2.1.0.tgz
+# image_tag: 18.0.2

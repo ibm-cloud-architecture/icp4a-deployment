@@ -1,0 +1,87 @@
+- hosts: nfs
+  remote_user: root
+  tasks:
+    - name: Init NFS Folders
+      block:
+      - name: Creates directory {{ pv_path }}
+        file:
+          path: "{{ pv_path }}"
+          state: directory
+      - name: Change {{ pv_path }} ownership, group and permissions
+        file:
+          path: "{{ pv_path }}"
+          owner: '50001'
+          group: '50000'
+      - name: Creates directory {{ pv_path }}/dbamc-deploy
+        file:
+          path: "{{ pv_path }}/dbamc-deploy"
+          state: directory
+      - name: Change {{ pv_path }}/dbamc-deploy ownership, group and permissions
+        file:
+          path: "{{ pv_path }}/dbamc-deploy"
+          owner: '50001'
+          group: '50000'
+      tags:
+      - init_nfs
+
+- hosts: boot
+  remote_user: root
+  tasks:
+    - name: Install ICP CLI
+      include: tasks/install-icp-cli.yaml
+      tags:
+      - install_cli
+
+    - name: Checking if the Helm Chart is loaded
+      shell: |
+        status=$(curl -sk --head https://{{ icp_server }}/helm-repo/requiredAssets/{{ helm_release_file }} | head -n 1)
+        echo $status
+      register: helm_chart_status
+      run_once: true
+      tags:
+      - test_helm_chart
+
+    - name: Load DBAMC Helm Chart
+      command: cloudctl catalog load-archive --archive {{ dbamc_install_file }} --registry {{ register_server }}
+      when: helm_chart_status.stdout.find("404") != -1
+      tags:
+      - load_dbamc
+
+    - name: Create namespace {{ namespace }}
+      shell: |
+        kubectl create namespace {{ namespace }}
+      ignore_errors: yes
+      tags:
+      - create_namespace
+
+    - name: Create Docker Pull Secret
+      shell: |
+        kubectl create secret docker-registry {{ package_name }}-secret --docker-server={{ register_server }} --docker-username={{ admin_name }} --docker-password={{ admin_password }} -n {{ namespace }}
+        kubectl patch serviceaccount default -p '{"imagePullSecrets": [{"name": "{{ package_name }}-secret"}]}' --namespace={{ namespace }}
+        kubectl create secret docker-registry admin.registrykey --docker-server={{ register_server }} --docker-username={{ admin_name }} --docker-password={{ admin_password }} -n {{ namespace }}
+        kubectl -n {{ namespace }} create rolebinding ibm-anyuid-clustrrole-rolebinding --clusterrole=ibm-anyuid-clusterrole --group=system:serviceaccounts:{{ namespace }}
+      ignore_errors: yes
+      tags:
+      - create_secret
+
+    - name: Create PV and PVC in ICP
+      block:
+      - name: Prepare pv yaml from template
+        template:
+          src: templates/pv.yaml.j2
+          dest: /root/pv.yaml
+      - name: Create PV and PVC
+        shell: |
+          kubectl create -f /root/pv.yaml
+      tags:
+      - create_pv
+      
+    - name: Deploy DBAMC
+      shell: |
+        rm -rf /root/{{ helm_release_file }}
+        curl -kLo /root/{{ helm_release_file }}  https://{{ icp_server }}/helm-repo/requiredAssets/{{ helm_release_file }}
+        helm install /root/{{ helm_release_file }} --name {{ package_name }} --namespace {{ namespace }} --set volume.persistentVolumeClaim={{ pvc_name }},image.repository={{ register_server }}/default/ibacc-master,image.tag={{ image_tag }},image.pullPolicy=IfNotPresent --tls
+      environment:
+        HELM_HOME: /root/.helm
+      tags:
+      - deploy_dbamc

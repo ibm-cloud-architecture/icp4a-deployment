@@ -1,0 +1,4 @@
+- name: Install "nfs-kernel-server" package
+  package:
+    name: nfs-kernel-server
+    state: present

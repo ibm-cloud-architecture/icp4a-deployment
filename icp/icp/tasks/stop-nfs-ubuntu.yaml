@@ -1,0 +1,5 @@
+- name: Ensure "nfs-kernel-server" is stopped.
+  service: 
+    name: nfs-kernel-server
+    state: stopped
+    enabled: no

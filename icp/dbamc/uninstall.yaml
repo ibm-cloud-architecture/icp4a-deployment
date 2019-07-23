@@ -1,0 +1,42 @@
+# Playbook : Uninstall DBAMC for ICP
+
+- hosts: boot
+  remote_user: root
+  tasks:
+    - name: Install ICP CLI
+      include: tasks/install-icp-cli.yaml
+      tags:
+      - install_cli
+
+    - name: Purge DBAMC
+      shell: |
+        helm delete {{ package_name }} --purge --tls
+        kubectl delete namespace {{ namespace }}
+      environment:
+        HELM_HOME: /root/.helm
+      ignore_errors: yes        
+      tags:
+      - purge_dbamc
+
+    - name: Delete PV and PVC in ICP
+      block:
+      - name: Prepare pv yaml from template
+        template:
+          src: templates/pv.yaml.j2
+          dest: /root/pv.yaml
+      - name: Delete PV
+        shell: |
+          kubectl delete -f /root/pv.yaml
+        ignore_errors: yes
+      tags:
+      - delete_pv
+    
+- hosts: nfs
+  remote_user: root
+  tasks:
+    - name: Remove NFS Folders {{ pv_path }}
+      file:
+        path: "{{ pv_path }}"
+        state: absent
+      tags:
+      - delete_nfs

@@ -1,0 +1,8 @@
+- name: Install "rpcbind" package
+  package:
+    name: rpcbind
+    state: present
+- name: Install "nfs-utils" package
+  package:
+    name: nfs-utils
+    state: present

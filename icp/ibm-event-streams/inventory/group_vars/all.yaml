@@ -1,0 +1,17 @@
+# variables for all hosts
+
+icp_server: 172.16.52.215:8443
+api_server: 172.16.52.215:8001
+nfs_server: 172.16.52.212
+cluster_name: dbamc
+register_server: dbamc.icp:8500
+admin_name: admin
+admin_password: admin
+install_file: /downloads/eventstreams.2019.1.1.z_x86.pak.tar.gz
+kube_certs_folder: /opt/ibm-cloud-private-3.1.2/cluster/cfc-certs/kubernetes
+helm_certs_folder: /opt/ibm-cloud-private-3.1.2/cluster/cfc-certs/helm
+
+namespace: event-streams
+package_name: event-streams-test1
+
+pv_root_folder: /data/persistentvolumes/kafka

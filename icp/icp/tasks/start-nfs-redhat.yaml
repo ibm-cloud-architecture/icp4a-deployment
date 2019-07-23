@@ -1,0 +1,20 @@
+- name: Ensure "rpcbind" is running.
+  service: 
+    name: rpcbind
+    state: started
+    enabled: yes
+- name: Ensure "nfs-server" is running.
+  service: 
+    name: nfs-server
+    state: started
+    enabled: yes
+- name: Ensure "nfs-lock" is running.
+  service: 
+    name: nfs-lock
+    state: started
+    enabled: yes
+- name: Ensure "nfs-idmap" is running.
+  service: 
+    name: nfs-idmap
+    state: started
+    enabled: yes

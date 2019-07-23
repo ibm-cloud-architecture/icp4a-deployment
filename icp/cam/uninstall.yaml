@@ -1,0 +1,49 @@
+# Playbook : Uninstall CAM for ICP
+
+- hosts: boot
+  remote_user: root
+  tasks:
+    - name: Install ICP CLI
+      include: tasks/install-icp-cli.yaml
+      tags:
+      - install_cli
+
+    - name: Purge CAM
+      shell: |
+        helm delete {{ package_name }} --purge --tls
+        kubectl delete pod --grace-period=0 --force --namespace services -l release={{ package_name }}
+        kubectl delete clusterservicebrokers.servicecatalog.k8s.io cam-broker
+        kubectl delete secret cam-docker-secret -n services
+        kubectl patch serviceaccount default -p '{"imagePullSecrets": []}' --namespace=services
+      environment:
+        HELM_HOME: /root/.helm
+      ignore_errors: yes        
+      tags:
+      - purge_cam
+
+    - name: Delete PV and PVC in ICP
+      block:
+      - name: Prepare pv yaml from template
+        template:
+          src: templates/pv.yaml.j2
+          dest: /root/pv.yaml
+      - name: Delete PV and PVC
+        shell: |
+          kubectl delete PersistentVolumeClaim cam-terraform-pv -n services
+          kubectl delete PersistentVolumeClaim cam-bpd-appdata-pv -n services
+          kubectl delete PersistentVolumeClaim cam-logs-pv -n services
+          kubectl delete PersistentVolumeClaim cam-mongo-pv -n services
+          kubectl delete -f /root/pv.yaml
+        ignore_errors: yes
+      tags:
+      - delete_pv
+    
+- hosts: nfs
+  remote_user: root
+  tasks:
+    - name: Remove NFS Folders {{ pv_root_folder }}
+      file:
+        path: "{{ pv_root_folder }}"
+        state: absent
+      tags:
+      - delete_nfs

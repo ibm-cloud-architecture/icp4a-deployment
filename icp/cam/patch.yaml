@@ -1,0 +1,20 @@
+- hosts: boot
+  remote_user: root
+  tasks:
+    - name: Creates directory /opt/cam-iaas
+      file:
+        path: "/opt/cam-iaas"
+        state: directory
+    - name: Copy CAM IAAS Docker File
+      template:
+        src: cam-iaas-fix/Dockerfile.j2
+        dest: "/opt/cam-iaas/Dockerfile"
+    - name: Copy CAM IAAS cloud-connection.js
+      copy: 
+        src: cam-iaas-fix/cloud-connection.js
+        dest: "/opt/cam-iaas/cloud-connection.js"
+    - name: build fix image
+      shell: |
+        cd /opt/cam-iaas
+        docker build . -t {{ register_server }}/services/icam-iaas:3.1.2.1-x86_64-fix-timeout
+        docker push {{ register_server }}/services/icam-iaas:3.1.2.1-x86_64-fix-timeout

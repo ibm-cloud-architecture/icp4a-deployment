@@ -1,0 +1,40 @@
+- name: Install ICP CLI
+  block:
+  - name: Create /root/install_cli.sh from template
+    template:
+      src: templates/install_cli.sh.j2
+      dest: /root/install_cli.sh
+      mode: '0777'
+  - name: Creates docker certs directory
+    file:
+      path: "/etc/docker/certs.d/{{ register_server }}"
+      state: directory
+  - name: Copy Docker certs files
+    shell: |
+      scp root@{{ groups['master'][0] }}:/etc/docker/certs.d/{{ register_server }}/ca.crt /etc/docker/certs.d/{{ register_server }}/ca.crt
+      scp root@{{ groups['master'][0] }}:/etc/docker/certs.d/{{ register_server }}/root-ca.crt /etc/docker/certs.d/{{ register_server }}/root-ca.crt
+  - name: Create kube config from template
+    template:
+      src: templates/kube.config.j2
+      dest: /root/.kube/config
+  - name: Transfer kubecfg.crt to boot
+    command: cp -r {{ kube_certs_folder }}/kubecfg.crt /root/.kube/kubecfg.crt
+  - name: Transfer kubecfg.key to boot
+    command: cp -r {{ kube_certs_folder }}/kubecfg.key /root/.kube/kubecfg.key
+  - name: Install ICP CLI
+    command: sh /root/install_cli.sh
+  - name: Login cloudctl
+    command: cloudctl login -a https://{{ icp_server }} --skip-ssl-validation -u {{ admin_name }} -p {{ admin_password }} -c id-dbamc-account -n services
+  - name: Login docker
+    command: docker login {{ register_server }} -u {{ admin_name }} -p {{ admin_password }}
+  - name: Transfer helm admin.crt to boot
+    command: cp -r {{ helm_certs_folder }}/admin.crt /root/.helm/cert.pem
+  - name: Transfer helm admin.key to boot
+    command: cp -r {{ helm_certs_folder }}/admin.key /root/.helm/key.pem
+  - name: Init Helm
+    shell: |
+      helm init --client-only
+      helm version --tls
+      helm repo add incubator https://kubernetes-charts-incubator.storage.googleapis.com
+    environment:
+      HELM_HOME: /root/.helm

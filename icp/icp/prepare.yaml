@@ -1,0 +1,84 @@
+# Playbook : Prepare the enviornment before installation.
+
+- hosts: all
+  remote_user: root
+  tasks:
+    - name: Setup YUM
+      block:
+      - name: Add repository
+        yum_repository:
+          name: csplab
+          description: csplab YUM repo
+          baseurl: "{{ yum_repository_url }}"
+          enabled: yes
+          gpgcheck: no
+      - name: Clean
+        shell: yum clean all
+      when:
+        - ansible_os_family == "RedHat"
+      tags:
+      - setup_yum
+
+    - name: Stop and disable firewalld
+      service:
+        name: firewalld
+        state: stopped
+        enabled: no
+      when:
+        - ansible_os_family == "RedHat"
+      tags:
+      - stop_firewall
+    
+    - name: Setup IPv4
+      block:
+      - name: Enable IPv4 forwarding
+        sysctl:
+          name: net.ipv4.ip_forward
+          value: '1'
+          state: present
+          reload: yes
+          sysctl_set: yes
+      - name: Disable IPv6 (part 1)
+        sysctl:
+          name: net.ipv6.conf.all.disable_ipv6
+          value: '1'
+          state: present
+          reload: yes
+          sysctl_set: yes
+      - name: Disable IPv6 (part 2)
+        sysctl:
+          name: net.ipv6.conf.default.disable_ipv6
+          value: '1'
+          state: present
+          reload: yes
+          sysctl_set: yes
+      tags:
+      - setup_ip
+    
+    - name: Install packages
+      block:
+      - name: Install "unzip" package
+        package:
+          name: unzip
+          state: present
+      - name: Install "python" package
+        package:
+          name: python
+          state: present
+      - name: Install "socat" package
+        package:
+          name: socat
+          state: present
+      - include_tasks: tasks/nfs-redhat.yaml
+        when: ansible_os_family == 'RedHat'
+      - include_tasks: tasks/nfs-client-ubuntu.yaml
+        when: ansible_os_family == 'Debian'
+      tags:
+      - install_dependent_packages
+
+    - name: Copy /etc/hosts
+      copy: 
+        src: "{{ node_hosts }}"
+        dest: /etc/hosts
+      tags:
+      - update_hosts

@@ -1,0 +1,133 @@
+####################################################################
+#  vars:
+#    icp_console_url: "{{ icpConfiguration.ICP_CONSOLE_URL }}"
+####################################################################
+
+  - name: Initialization Helm CLI Configuration for ICp {{ icpConfiguration.ICP_VERSION }}
+    block:
+      - debug:
+           msg: "Starting Initialization Helm CLI Configuration for ICp ..."
+
+      #
+      # configure for the cloudctl CLI
+      #
+      - name: download cloudctl dymamically
+        shell: "curl -kLo ~/cloudctl-linux-amd64 {{  icp_console_url  }}/api/cli/cloudctl-linux-amd64; chmod +x ~/cloudctl-linux-amd64"
+        environment:
+          USER: bai-user
+        register: shell_curl
+        ignore_errors: yes
+      
+      - name: set cloudctl command line
+        set_fact:
+          cloudctl_cmd: "~/cloudctl-linux-amd64"
+        when: (shell_curl.rc == 0)
+        
+      - name: Debug msg for cloudctl CLI
+        debug:
+          msg: "cloudctl_cmd={{ cloudctl_cmd }}"
+          
+      #
+      # configure for the kubectl CLI
+      #
+      - name: download kubectl dymamically
+        shell: "curl -kLo ~/kubectl-linux-amd64 {{  icp_console_url  }}/api/cli/kubectl-linux-amd64; chmod +x ~/kubectl-linux-amd64"
+        environment:
+          USER: bai-user
+        register: shell_curl
+        ignore_errors: yes
+      
+      - name: set kubectl command line
+        set_fact:
+          kubectl_cmd: "~/kubectl-linux-amd64"
+        when: (shell_curl.rc == 0)
+        
+      - name: Debug msg for kubectl CLI
+        debug:
+          msg: "kubectl_cmd={{ kubectl_cmd }}"
+          
+      #
+      # configure for the helm CLI
+      #
+      - name: download helm dymamically
+        shell: "curl -kLo ~/helm-linux-amd64.tar.gz {{  icp_console_url  }}/api/cli/helm-linux-amd64.tar.gz; tar xvf ~/helm-linux-amd64.tar.gz; cp ./linux-amd64/helm ~/helm"
+        environment:
+          USER: bai-user
+        register: shell_curl
+        ignore_errors: yes
+      
+      - name: set helm command line
+        set_fact:
+          helm_cmd: "~/helm"
+        when: (shell_curl.rc == 0)
+
+      - name: Debug msg for helm CLI
+        debug:
+          msg: "helm_cmd={{ helm_cmd }}"    
+       
+      - name: Log in to ICP cluster
+        shell: "{{  cloudctl_cmd  }} login -a {{ icpConfiguration.ICP_CONSOLE_URL }} --skip-ssl-validation -u {{ icpConfiguration.ICP_ADMIN_USER }} -p {{ icpConfiguration.ICP_ADMIN_PWD | regex_replace('{base64}', '') | b64decode }} -c {{ icpConfiguration.ICP_ACCOUNT }} -n default"
+        environment:
+          USER: bai-user
+        register: bxlogin
+
+      - name: Debug msg for Log in to ICP cluster
+        debug:
+          msg: "{{ bxlogin.stdout_lines }}"
+
+      - lineinfile: create=yes  dest={{ ICP_LOG_PATH }}/ibacc-icp-helm-init.log line="{{ bxlogin.stdout }}" state=present
+
+      - name: Get ICp configure client token
+        command: "{{  cloudctl_cmd  }} tokens"
+        register: bxtokens
+
+      - name: Set token to set_fact
+        set_fact:
+          icptokens: "{{ bxtokens.stdout_lines[1] | regex_replace('ID token:  ', '')}}"
+
+      - name: Debug msg for ICp-tokens
+        debug:
+          msg: "{{ icptokens }}"
+
+      - name: create helm root folder
+        file: path="/opt/ibm/icp/playbooks/scripts/.helm/"  mode=0755 state=directory
+        register: create_helm_folder
+
+      - name: create helm root folder output
+        debug:
+          msg: "{{ create_helm_folder }}"
+
+      - name: Copy helm certification
+        template: dest="/opt/ibm/icp/playbooks/scripts/.helm/" src={{ item }} mode=0755
+        with_items:
+          - /opt/ibm/icp/playbooks/scripts/helm-certs/cert.pem
+          - /opt/ibm/icp/playbooks/scripts/helm-certs/key.pem
+          - /opt/ibm/icp/playbooks/scripts/helm-certs/ca.pem
+        register: copy_helm_cert_items
+
+      - name: Copy certification for helm output
+        debug:
+          msg: "{{ copy_helm_cert_items }}"
+
+      - name: Helm Initialization
+        shell: "{{  helm_cmd  }} init --client-only --skip-refresh"
+        register: shell_stdout_helm_init
+
+      - name: Debug msg for Verifying the HELM CLI installation
+        debug:
+          msg: "{{ shell_stdout_helm_init.stdout_lines }}"
+
+      - name: write output of cmd
+        lineinfile: create=yes  dest="{{ ICP_LOG_PATH }}/ibacc_icp_helm_cli_init.log" line="{{ shell_stdout_helm_init.stdout }}" state=present
+
+      - name: Helm CLI Verification
+        shell: "{{  helm_cmd  }} version --tls"
+        register: shell_stdout_verify
+        ignore_errors: yes
+
+      - name: Debug msg for Helm CLI Configuration
+        debug:
+          msg: "{{ shell_stdout_verify.stdout_lines }}"
+
+      - name: write output of cmd
+        lineinfile: create=yes  dest={{ ICP_LOG_PATH }}/ibacc_icp_deploy_helm_init.log line="{{ shell_stdout_verify.stdout }}" state=present

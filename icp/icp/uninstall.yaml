@@ -1,0 +1,130 @@
+- hosts: boot
+  remote_user: root
+  tasks:
+    # - name: Install pip if not present
+    #   include: tasks/install-pip.yml
+    # - name: Uninstall ICP
+    #   docker_container:
+    #     name: "icp_uninstall"
+    #     image: "{{ icp_install_image }}"
+    #     command: uninstall
+    #     tty: yes
+    #     state: started
+    #     recreate: yes
+    #     volumes:
+    #       - "{{ icp_install_folder }}/cluster:/installer/cluster"
+    #       - "{{ icp_images_folder }}:/installer/cluster/images"
+    #     env:
+    #       LICENSE: "accept"
+    - name: Uninstall ICP
+      shell: |
+        docker run --net=host -t -e LICENSE=accept -v {{ icp_install_folder }}/cluster:/installer/cluster {{ icp_install_image }} uninstall
+      tags:
+        - uninstall_icp
+
+- hosts: master
+  remote_user: root
+  tasks:
+    - name: Mount NFS folders
+      block:
+      - name: Unmount NFS filesystem for ICP registry
+        mount:
+          path: /var/lib/registry
+          state: unmounted
+      - name: Unmount NFS filesystem ICP audit logs
+        mount:
+          path: /var/lib/icp/audit
+          state: unmounted
+      tags:
+      - unmount_nfs
+
+- hosts: nfs
+  remote_user: root
+  tasks:
+    - name: Mount NFS folders
+      block:
+      - name: Copy empty exports file.
+        template:
+          src: empty.j2
+          dest: /etc/exports
+          owner: root
+          group: root
+          mode: '0644'
+      - name: Ensure "rpcbind" is stopped.
+        service: 
+          name: rpcbind
+          state: stopped
+          enabled: no
+      - name: Ensure "nfs-server" is stopped.
+        service: 
+          name: nfs-server
+          state: stopped
+          enabled: no
+      - name: Ensure "nfs-lock" is stopped.
+        service: 
+          name: nfs-lock
+          state: stopped
+          enabled: no
+      - name: Ensure "nfs-idmap" is stopped.
+        service: 
+          name: nfs-idmap
+          state: stopped
+          enabled: no
+      - name: Remove exports directories
+        file:
+          path: "{{ item.strip().split()[0] }}"
+          state: absent
+        loop: "{{ nfs_exports|flatten(levels=1) }}"
+      tags:
+      - unmount_nfs
+
+
+- hosts: master:worker:proxy:management
+  remote_user: root
+  tasks:
+    - name: Remove docker
+      package:
+        name: docker
+        state: absent
+    - name: Remove docker-ce
+      package:
+        name: docker-ce
+        state: absent
+    - name: Remove docker-ce-cli
+      package:
+        name: docker-ce-cli
+        state: absent
+    - name: Remove docker-engine
+      package:
+        name: docker-engine
+        state: absent
+    - name: Remove docker.io
+      package:
+        name: docker.io
+        state: absent
+    - name: Remove containerd
+      package:
+        name: containerd
+        state: absent
+    - name: Remove runc
+      package:
+        name: runc
+        state: absent
+    - name: Remove /var/lib/docker
+      file:
+        path: /var/lib/docker
+        state: absent
+    - name: Remove /var/run/docker.sock
+      file:
+        path: /var/run/docker.sock
+        state: absent
+    - name: Remove /etc/docker
+      file:
+        path: /etc/docker
+        state: absent
+    - name: Remove /root/.docker
+      file:
+        path: /root/.docker
+        state: absent
+  tags:
+  - remove_docker

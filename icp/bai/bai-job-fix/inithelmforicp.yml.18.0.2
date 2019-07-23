@@ -1,0 +1,203 @@
+####################################################################
+#  vars:
+#    icp_console_url: "{{ icpConfiguration.ICP_CONSOLE_URL }}"
+####################################################################
+
+  - name: Initialization Helm CLI Configuration for ICp {{ icpConfiguration.ICP_VERSION }}
+    block:
+      - debug:
+           msg: "Starting Initialization Helm CLI Configuration for ICp ..."
+
+      - name: Log in to ICP cluster for ICP 2.x release
+        command: "bx pr login -a {{ icpConfiguration.ICP_CONSOLE_URL }} --skip-ssl-validation -u {{ icpConfiguration.ICP_ADMIN_USER }} -p {{ icpConfiguration.ICP_ADMIN_PWD | regex_replace('{base64}', '') | b64decode }} -c {{ icpConfiguration.ICP_ACCOUNT }}"
+        register: bxlogin
+        when: ((icpConfiguration.ICP_VERSION) == "2.1.0" or (icpConfiguration.ICP_VERSION) == "2.1.0.2" or (icpConfiguration.ICP_VERSION) == "2.1.0.3")
+
+      #
+      # configure for the cloudctl CLI
+      #
+      - name: download cloudctl dymamically
+        shell: "curl -kLo ~/cloudctl-linux-amd64 {{  icp_console_url  }}/api/cli/cloudctl-linux-amd64; chmod +x ~/cloudctl-linux-amd64"
+        environment:
+          USER: bai-user
+        register: shell_curl
+        ignore_errors: yes
+        when: ((icpConfiguration.ICP_VERSION) == "3.1.0") 
+      
+      - name: set cloudctl command line
+        set_fact:
+          cloudctl_cmd: "~/cloudctl-linux-amd64"
+        when: ((icpConfiguration.ICP_VERSION) == "3.1.0" and shell_curl.rc == 0)
+        
+      - name: Debug msg for cloudctl CLI
+        debug:
+          msg: "cloudctl_cmd={{ cloudctl_cmd }}"
+          
+      #
+      # configure for the kubectl CLI
+      #
+      - name: download kubectl dymamically
+        shell: "curl -kLo ~/kubectl-linux-amd64 {{  icp_console_url  }}/api/cli/kubectl-linux-amd64; chmod +x ~/kubectl-linux-amd64"
+        environment:
+          USER: bai-user
+        register: shell_curl
+        ignore_errors: yes
+        when: ((icpConfiguration.ICP_VERSION) == "3.1.0") 
+      
+      - name: set kubectl command line
+        set_fact:
+          kubectl_cmd: "~/kubectl-linux-amd64"
+        when: ((icpConfiguration.ICP_VERSION) == "3.1.0" and shell_curl.rc == 0)
+        
+      - name: Debug msg for kubectl CLI
+        debug:
+          msg: "kubectl_cmd={{ kubectl_cmd }}"
+          
+      #
+      # configure for the helm CLI
+      #
+      - name: download helm dymamically
+        shell: "curl -kLo ~/helm-linux-amd64.tar.gz {{  icp_console_url  }}/api/cli/helm-linux-amd64.tar.gz; tar xvf ~/helm-linux-amd64.tar.gz; cp ./linux-amd64/helm ~/helm"
+        environment:
+          USER: bai-user
+        register: shell_curl
+        ignore_errors: yes
+        when: ((icpConfiguration.ICP_VERSION) == "3.1.0") 
+      
+      - name: set helm command line
+        set_fact:
+          helm_cmd: "~/helm"
+        when: ((icpConfiguration.ICP_VERSION) == "3.1.0" and shell_curl.rc == 0)
+        
+      - name: set helm command line for ICP 2.1.0.x
+        set_fact:
+          helm_cmd: "helm272"
+        when: '(icpConfiguration.ICP_VERSION) == "2.1.0.2" or (icpConfiguration.ICP_VERSION) == "2.1.0.3"'
+        
+      - name: Debug msg for helm CLI
+        debug:
+          msg: "helm_cmd={{ helm_cmd }}"    
+       
+      - name: Log in to ICP cluster for ICP 3.1 release
+        shell: "{{  cloudctl_cmd  }} login -a {{ icpConfiguration.ICP_CONSOLE_URL }} --skip-ssl-validation -u {{ icpConfiguration.ICP_ADMIN_USER }} -p {{ icpConfiguration.ICP_ADMIN_PWD | regex_replace('{base64}', '') | b64decode }} -c {{ icpConfiguration.ICP_ACCOUNT }} -n default"
+        environment:
+          USER: bai-user
+        register: bxlogin
+        when: ((icpConfiguration.ICP_VERSION) == "3.1.0")
+
+      - name: Debug msg for Log in to ICP cluster
+        debug:
+          msg: "{{ bxlogin.stdout_lines }}"
+
+      - lineinfile: create=yes  dest={{ ICP_LOG_PATH }}/ibacc-icp-helm-init.log line="{{ bxlogin.stdout }}" state=present
+
+      - name: Get ICp configure client token for ICP 2.x release
+        command: "bx pr tokens"
+        register: bxtokens
+        when: ((icpConfiguration.ICP_VERSION) == "2.1.0" or (icpConfiguration.ICP_VERSION) == "2.1.0.2" or (icpConfiguration.ICP_VERSION) == "2.1.0.3")
+
+      - name: Get ICp configure client token for ICP 3.1 release
+        command: "{{  cloudctl_cmd  }} tokens"
+        register: bxtokens
+        when: ((icpConfiguration.ICP_VERSION) == "3.1.0")
+
+      - name: Set token to set_fact
+        set_fact:
+          icptokens: "{{ bxtokens.stdout_lines[1] | regex_replace('ID token:  ', '')}}"
+
+      - name: Debug msg for ICp-tokens
+        debug:
+          msg: "{{ icptokens }}"
+          
+      - name: Configure your ICP cluster
+        command: "bx pr cluster-config {{ icpConfiguration.ICP_CLUSTER_NAME }}"
+        until: cfgicpcluster.rc == 0
+        retries: 5
+        delay: 3
+        register: cfgicpcluster
+        when: ((icpConfiguration.ICP_VERSION) == "2.1.0" or (icpConfiguration.ICP_VERSION) == "2.1.0.2" or (icpConfiguration.ICP_VERSION) == "2.1.0.3")
+
+      - name: Debug msg for Configure your ICP cluster
+        debug:
+          msg: "{{ cfgicpcluster.stdout_lines }}"
+        when: ((icpConfiguration.ICP_VERSION) == "2.1.0" or (icpConfiguration.ICP_VERSION) == "2.1.0.2" or (icpConfiguration.ICP_VERSION) == "2.1.0.3")
+
+      - lineinfile: create=yes  dest={{ ICP_LOG_PATH }}/ibacc-icp-helm-init.log line="{{ cfgicpcluster.stdout }}" state=present
+        when: ((icpConfiguration.ICP_VERSION) == "2.1.0" or (icpConfiguration.ICP_VERSION) == "2.1.0.2" or (icpConfiguration.ICP_VERSION) == "2.1.0.3")
+
+      - name: create helm root folder
+        file: path="/opt/ibm/icp/playbooks/scripts/.helm/"  mode=0755 state=directory
+        register: create_helm_folder
+
+      - name: create helm root folder output
+        debug:
+          msg: "{{ create_helm_folder }}"
+
+      - name: Copy helm certification for  ICp 2.1.0.2
+        template: dest="/" src={{ item }} mode=0755
+        with_items:
+          - /root/.helm/cert.pem
+          - /root/.helm/key.pem
+          - /root/.helm/ca.pem
+        register: copy_helm_cert_items
+        when: ((icpConfiguration.ICP_VERSION) == "2.1.0.2")
+
+      - name: Copy helm certification for  ICp 2.1.0.3
+        template: dest="/opt/ibm/icp/playbooks/scripts/.helm/" src={{ item }} mode=0755
+        with_items:
+          - /opt/ibm/icp/playbooks/scripts/.kube/{{ icpConfiguration.ICP_CLUSTER_NAME }}/cert.pem
+          - /opt/ibm/icp/playbooks/scripts/.kube/{{ icpConfiguration.ICP_CLUSTER_NAME }}/key.pem
+          - /opt/ibm/icp/playbooks/scripts/.kube/{{ icpConfiguration.ICP_CLUSTER_NAME }}/ca.pem
+        register: copy_helm_cert_items
+        when: (icpConfiguration.ICP_VERSION) == "2.1.0.3"
+
+      - name: Copy helm certification for  ICp 3.1.0
+        template: dest="/opt/ibm/icp/playbooks/scripts/.helm/" src={{ item }} mode=0755
+        with_items:
+          - /opt/ibm/icp/playbooks/scripts/helm-certs/cert.pem
+          - /opt/ibm/icp/playbooks/scripts/helm-certs/key.pem
+          - /opt/ibm/icp/playbooks/scripts/helm-certs/ca.pem
+        register: copy_helm_cert_items
+        when: (icpConfiguration.ICP_VERSION) == "3.1.0"
+
+      - name: Copy certification for helm output
+        debug:
+          msg: "{{ copy_helm_cert_items }}"
+
+      - lineinfile: create=yes  dest={{ ICP_LOG_PATH }}/ibacc-icp-helm-init.log line="{{ copy_helm_cert_items }}" state=present
+
+      - name: Helm Initialization
+        shell: "{{  helm_cmd  }} init --client-only --skip-refresh"
+        register: shell_stdout_helm_init
+        when: '(icpConfiguration.ICP_VERSION) == "2.1.0.2" or (icpConfiguration.ICP_VERSION) == "2.1.0.3"'
+
+      - name: Helm Initialization
+        shell: "{{  helm_cmd  }} init --client-only --skip-refresh"
+        register: shell_stdout_helm_init
+        when: '(icpConfiguration.ICP_VERSION) == "3.1.0"'
+
+      - name: Debug msg for Verifying the HELM CLI installation
+        debug:
+          msg: "{{ shell_stdout_helm_init.stdout_lines }}"
+
+      - name: write output of cmd
+        lineinfile: create=yes  dest="{{ ICP_LOG_PATH }}/ibacc_icp_helm_cli_init.log" line="{{ shell_stdout_helm_init.stdout }}" state=present
+
+      - name: Helm CLI Verification
+        shell: "{{  helm_cmd  }} version --tls"
+        register: shell_stdout_verify
+        ignore_errors: yes
+        when: '(icpConfiguration.ICP_VERSION) == "2.1.0.2" or (icpConfiguration.ICP_VERSION) == "2.1.0.3"'
+
+      - name: Helm CLI Verification
+        shell: "{{  helm_cmd  }} version --tls"
+        register: shell_stdout_verify
+        ignore_errors: yes
+        when: '(icpConfiguration.ICP_VERSION) == "3.1.0"'
+
+      - name: Debug msg for Helm CLI Configuration
+        debug:
+          msg: "{{ shell_stdout_verify.stdout_lines }}"
+
+      - name: write output of cmd
+        lineinfile: create=yes  dest={{ ICP_LOG_PATH }}/ibacc_icp_deploy_helm_init.log line="{{ shell_stdout_verify.stdout }}" state=present

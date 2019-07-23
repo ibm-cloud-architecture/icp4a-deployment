@@ -1,0 +1,31 @@
+# The variables for ICP installation
+yum_repository_url: http://storage4.csplab.local/storage/cdimages/rhel7-u5-server-x86_64/
+docker_install_file: /downloads/icp-docker-18.03.1_x86_64.bin
+icp_images_folder: /downloads/3.2.0
+icp_install_file: /downloads/3.2.0/ibm-cloud-private-x86_64-3.2.0.tar.gz
+icp_install_folder: /opt/ibm-cloud-private-3.2.0
+icp_install_image: ibmcom/icp-inception-amd64:3.2.0-ee
+config_yaml: conf/ubuntu/config.312.yaml
+node_hosts: conf/ubuntu/hosts
+
+# The variables for NFS
+nfs_exports: ["/data/persistentvolumes *(rw,no_root_squash)", "/data/registry *(rw,no_root_squash)", "/data/audit *(rw,no_root_squash)"]
+
+
+# The variables for LDAP
+cluster_server: https://172.16.52.215:8443
+admin_name: admin
+admin_password: admin
+
+LDAP_ID: dbamc-ldap
+LDAP_URL: ldap://172.16.52.212:389
+LDAP_BASEDN: o=ibm,c=us
+LDAP_BINDDN: cn=root
+# password of the BIND DN. It should be base64 encoded
+LDAP_BINDPASSWORD: UHJ1bmUyMDE5
+LDAP_TYPE: Custom
+LDAP_USERFILTER: "(&(cn=%v)(objectclass=person))"
+LDAP_USERIDMAP: "*:uid"
+LDAP_GROUPFILTER: "(&(cn=%v)(|(objectclass=groupOfNames)(objectclass=groupOfUniqueNames)(objectclass=groupOfURLs)))"
+LDAP_GROUPIDMAP: "*:cn"
+LDAP_GROUPMEMBERIDMAP: groupOfNames:member

@@ -1,0 +1,27 @@
+# install cloudctl
+rm -rf /root/cloudctl
+curl -kLo /root/cloudctl https://{{ icp_server }}/api/cli/cloudctl-linux-amd64
+chmod 755 /root/cloudctl
+rm -rf /usr/local/bin/cloudctl
+mv /root/cloudctl /usr/local/bin/cloudctl
+cloudctl --help
+
+# install kubectl
+rm -rf /root/kubectl
+curl -kLo /root/kubectl https://{{ icp_server }}/api/cli/kubectl-linux-amd64
+chmod 755 /root/kubectl
+rm -rf /usr/local/bin/kubectl
+mv /root/kubectl /usr/local/bin/kubectl
+kubectl --help
+
+# install helm
+rm -rf /root/helm-linux-amd64.tar.gz
+rm -rf /root/linux-amd64
+rm -rf /root/.helm
+curl -kLo /root/helm-linux-amd64.tar.gz https://{{ icp_server }}/api/cli/helm-linux-amd64.tar.gz
+mkdir /root/helm-unpacked
+tar -xvzf /root/helm-linux-amd64.tar.gz -C /root/helm-unpacked
+chmod 755 /root/helm-unpacked/linux-amd64/helm
+rm -rf /usr/local/bin/helm
+mv /root/helm-unpacked/linux-amd64/helm /usr/local/bin/helm
+export HELM_HOME=/root/.helm

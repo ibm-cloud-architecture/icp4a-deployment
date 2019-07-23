@@ -1,0 +1,5 @@
+- name: Ensure "nfs-kernel-server" is running.
+  service: 
+    name: nfs-kernel-server
+    state: started
+    enabled: yes

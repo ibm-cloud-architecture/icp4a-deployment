@@ -1,0 +1,17 @@
+# the Boot node
+[boot]
+172.16.52.220
+
+# the NFS node
+[nfs]
+172.16.52.212
+
+# one of the master node
+[master]
+172.16.52.221
+
+[worker]
+172.16.52.228
+172.16.52.229
+172.16.52.230
+172.16.52.231

@@ -1,0 +1,42 @@
+- hosts: boot
+  remote_user: root
+  tasks:
+    - name: Install ICP CLI
+      include: tasks/install-icp-cli.yaml
+      tags:
+      - install_cli
+
+    - name: Purge Event Streams
+      shell: |
+        helm delete {{ package_name }} --purge --tls
+        kubectl delete pvc -l release={{ package_name }} -n {{ namespace }}
+        kubectl delete namespace {{ namespace }}
+        kubectl delete secret {{ package_name }}-ibm-es-secret-copy-secret -n kube-system
+      environment:
+        HELM_HOME: /root/.helm
+      ignore_errors: yes        
+      tags:
+      - purge_event_streams
+
+    - name: Delete PV and PVC in ICP
+      block:
+      - name: Prepare pv yaml from template
+        template:
+          src: templates/pv.yaml.j2
+          dest: /root/pv.yaml
+      - name: Delete PV and PVC
+        shell: |
+          kubectl delete -f /root/pv.yaml
+        ignore_errors: yes
+      tags:
+      - delete_pv
+    
+- hosts: nfs
+  remote_user: root
+  tasks:
+    - name: Remove NFS Folders {{ pv_root_folder }}
+      file:
+        path: "{{ pv_root_folder }}"
+        state: absent
+      tags:
+      - delete_nfs

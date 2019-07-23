@@ -1,0 +1,18 @@
+127.0.0.1 localhost
+
+172.16.52.211 dbamc-icp-worker4.csplab.local dbamc-icp-worker4 nfs
+172.16.52.200 dbamc-icp-boot.csplab.local dbamc-icp-boot boot
+
+172.16.52.201 dbamc-icp-master1.csplab.local dbamc-icp-master1 master1
+172.16.52.202 dbamc-icp-master2.csplab.local dbamc-icp-master2 master2
+172.16.52.203 dbamc-icp-master3.csplab.local dbamc-icp-master3 master3
+
+172.16.52.208 dbamc-icp-worker1.csplab.local dbamc-icp-worker1 worker1
+172.16.52.209 dbamc-icp-worker2.csplab.local dbamc-icp-worker2 worker2
+172.16.52.210 dbamc-icp-worker3.csplab.local dbamc-icp-worker3 worker3
+
+172.16.52.206 dbamc-icp-proxy1.csplab.local dbamc-icp-proxy1 proxy1
+172.16.52.207 dbamc-icp-proxy2.csplab.local dbamc-icp-proxy2 proxy2
+
+172.16.52.204 dbamc-icp-mgmt1.csplab.local dbamc-icp-mgmt1 mgmt1
+172.16.52.205 dbamc-icp-mgmt2.csplab.local dbamc-icp-mgmt2 mgmt2

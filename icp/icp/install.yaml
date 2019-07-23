@@ -1,0 +1,163 @@
+- hosts: nfs
+  remote_user: root
+  tasks:
+    - name: Configure NFS Server
+      block:   
+      - include_tasks: tasks/nfs-redhat.yaml
+        when: ansible_os_family == 'RedHat'
+
+      - include_tasks: tasks/nfs-server-ubuntu.yaml
+        when: ansible_os_family == 'Debian'
+
+      - name: Create directories to export
+        file:
+          path: "{{ item.strip().split()[0] }}"
+          state: directory
+          mode: '0755'
+        loop: "{{ nfs_exports|flatten(levels=1) }}"
+
+      - name: Copy exports file.
+        template:
+          src: exports.j2
+          dest: /etc/exports
+          owner: root
+          group: root
+          mode: '0644'
+
+      - include_tasks: tasks/start-nfs-redhat.yaml
+        when: ansible_os_family == 'RedHat'
+
+      - include_tasks: tasks/start-nfs-ubuntu.yaml
+        when: ansible_os_family == 'Debian'
+      tags:
+      - mount_nfs
+    
+
+- hosts: master
+  remote_user: root
+  tasks:
+    - name: Mount NFS folders
+      block:      
+      - name: Create directory for ICP registry
+        file:
+          path: /var/lib/registry
+          state: directory
+          mode: '0755'
+          owner: root
+          group: root
+
+      - name: Mount NFS filesystem for ICP registry
+        mount:
+          src: "{{ groups['nfs'][0] }}:{{ nfs_exports[1].strip().split()[0] }}"
+          path: /var/lib/registry
+          state: mounted
+          fstype: nfs
+          opts: rw,suid,dev,exec,auto,nouser,async,soft
+          dump: '1'
+          passno: '2'
+
+      - name: Create directory for ICP audit logs
+        file:
+          path: /var/lib/icp/audit
+          state: directory
+          mode: '0755'
+          owner: root
+          group: root
+
+      - name: Mount NFS filesystem for ICP audit logs
+        mount:
+          src: "{{ groups['nfs'][0] }}:{{ nfs_exports[2].strip().split()[0] }}"
+          path: /var/lib/icp/audit
+          state: mounted
+          fstype: nfs
+          opts: rw,suid,dev,exec,auto,nouser,async,soft
+          dump: '1'
+          passno: '2'
+      tags:
+      - mount_nfs
+
+- hosts: boot
+  remote_user: root
+  tasks:
+    # - name: Install pip if not present
+    #   include: tasks/install-pip.yml
+    - name: Install Docker if not present
+      block:
+      - name: Change Install File permission
+        file:
+          path: "{{ docker_install_file }}"
+          mode: '0777'
+      - name: Install Docker if not present
+        command: "{{ docker_install_file }} --install"
+        args:
+          creates: /usr/bin/docker
+      - name: Start and Check Docker
+        service:
+          name: docker
+          state: started
+          enabled: yes
+      # - name: pip docker
+      #   pip:
+      #     name: docker
+      tags:
+      - install_docker
+
+    - name: Load ICP Install Images
+      shell: |
+        tar xf {{ icp_install_file }} -O | docker load
+      tags:
+      - load_icp_images
+
+    - name: Load ICP Configuration
+      block:
+      - name: Create ICP Install Folder
+        file:
+          path: "{{ icp_install_folder }}"
+          state: directory
+      # - name: Copy ICP Configuration
+      #   docker_container:
+      #     name: copy_icp_conf
+      #     image: "{{ icp_install_image }}"
+      #     command: cp -r cluster /data
+      #     state: started
+      #     recreate: yes
+      #     volumes:
+      #       - "{{ icp_install_folder }}:/data"
+      #     env:
+      #       LICENSE: "accept"
+      - name: Copy ICP Configuration
+        shell: |
+          docker run -e LICENSE=accept -v {{ icp_install_folder }}:/data {{ icp_install_image }} cp -r cluster /data
+      - name: Copy SSH ssh_key
+        copy: 
+          src: /root/.ssh/id_rsa
+          dest: "{{ icp_install_folder }}/cluster/ssh_key"
+      - name: Copy hosts
+        template:
+          src: templates/hosts.j2
+          dest: "{{ icp_install_folder }}/cluster/hosts"
+      - name: Copy config.yaml
+        copy: 
+          src: "{{ config_yaml }}"
+          dest: "{{ icp_install_folder }}/cluster/config.yaml"
+      tags:
+      - load_icp_conf
+      
+    # - name: Install ICP
+    #   docker_container:
+    #     name: icp_install
+    #     image: "{{ icp_install_image }}"
+    #     command: install
+    #     tty: yes
+    #     state: started
+    #     recreate: yes
+    #     volumes:
+    #       - "{{ icp_install_folder }}/cluster:/installer/cluster"
+    #       - "{{ icp_images_folder }}:/installer/cluster/images"
+    #     env:
+    #       LICENSE: "accept"
+    - name: Install ICP
+      shell: |
+        docker run --net=host -t -e LICENSE=accept -v {{ icp_install_folder }}/cluster:/installer/cluster -v {{ icp_images_folder }}:/installer/cluster/images {{ icp_install_image }} install
+      tags:
+      - install_icp

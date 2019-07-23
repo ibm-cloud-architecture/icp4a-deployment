@@ -1,0 +1,17 @@
+# variables for all hosts
+
+icp_server: 172.16.52.215:8443
+api_server: 172.16.52.215:8001
+nfs_server: 172.16.52.212
+cluster_name: dbamc
+register_server: dbamc.icp:8500
+admin_name: admin
+admin_password: admin
+cam_install_file: /downloads/icp-cam-x86_64-3.1.2.1.tar.gz
+kube_certs_folder: /opt/ibm-cloud-private-3.1.2/cluster/cfc-certs/kubernetes
+helm_certs_folder: /opt/ibm-cloud-private-3.1.2/cluster/cfc-certs/helm
+
+package_name: cam-test1
+api_key: 7yX5-BZ3pLvywkTyWjjUG7QwBGt80MCw5ckOBzhtiwvM
+
+pv_root_folder: /data/persistentvolumes/cam

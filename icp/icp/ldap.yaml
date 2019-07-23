@@ -1,0 +1,65 @@
+- hosts: boot
+  remote_user: root
+  tasks:
+    - name: Setup LDAP
+      block:
+      - name: Get Access Token
+        uri:
+          url: "{{ cluster_server }}/idprovider/v1/auth/identitytoken"
+          method: POST
+          validate_certs: no
+          body: "grant_type=password&username={{ admin_name }}&password={{ admin_password }}&scope=openid"
+          return_content: yes
+          headers:
+            Content-Type: "application/x-www-form-urlencoded;charset=UTF-8"
+        register: token_output
+
+      - name: Create LDAP connection
+        uri:
+          url: "{{ cluster_server }}/idmgmt/identity/api/v1/directory/ldap/onboardDirectory"
+          method: POST
+          validate_certs: no
+          body:
+            LDAP_ID: "{{ LDAP_ID }}"
+            LDAP_URL: "{{ LDAP_URL }}"
+            LDAP_BASEDN: "{{ LDAP_BASEDN }}"
+            LDAP_BINDDN: "{{ LDAP_BINDDN }}"
+            LDAP_BINDPASSWORD: "{{ LDAP_BINDPASSWORD }}"
+            LDAP_TYPE: "{{ LDAP_TYPE }}"
+            LDAP_USERFILTER: "{{ LDAP_USERFILTER }}"
+            LDAP_GROUPFILTER: "{{ LDAP_GROUPFILTER }}"
+            LDAP_USERIDMAP: "{{ LDAP_USERIDMAP }}"
+            LDAP_GROUPIDMAP: "{{ LDAP_GROUPIDMAP }}"
+            LDAP_GROUPMEMBERIDMAP: "{{ LDAP_GROUPMEMBERIDMAP }}"
+          return_content: yes
+          body_format: json
+          headers:
+            Authorization: "bearer {{ token_output.json.access_token }}"
+            Content-Type: "application/json"
+      tags:
+      - on_board
+      
+    - name: Delete LDAP
+      block:
+      - name: Get Access Token
+        uri:
+          url: "{{ cluster_server }}/idprovider/v1/auth/identitytoken"
+          method: POST
+          validate_certs: no
+          body: "grant_type=password&username={{ admin_name }}&password={{ admin_password }}&scope=openid"
+          return_content: yes
+          headers:
+            Content-Type: "application/x-www-form-urlencoded;charset=UTF-8"
+        register: token_output
+
+      - name: Delete LDAP connection
+        uri:
+          url: "{{ cluster_server }}/idmgmt/identity/api/v1/directory/ldap/offboardDirectory"
+          method: POST
+          validate_certs: no
+          return_content: yes
+          headers:
+            Authorization: "bearer {{ token_output.json.access_token }}"
+            Content-Type: "application/json"
+      tags:
+      - off_board

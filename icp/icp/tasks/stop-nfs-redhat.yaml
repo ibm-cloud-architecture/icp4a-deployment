@@ -1,0 +1,20 @@
+- name: Ensure "rpcbind" is stopped.
+  service: 
+    name: rpcbind
+    state: stopped
+    enabled: no
+- name: Ensure "nfs-server" is stopped.
+  service: 
+    name: nfs-server
+    state: stopped
+    enabled: no
+- name: Ensure "nfs-lock" is stopped.
+  service: 
+    name: nfs-lock
+    state: stopped
+    enabled: no
+- name: Ensure "nfs-idmap" is stopped.
+  service: 
+    name: nfs-idmap
+    state: stopped
+    enabled: no

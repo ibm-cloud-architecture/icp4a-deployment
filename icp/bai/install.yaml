@@ -1,0 +1,75 @@
+- hosts: nfs
+  remote_user: root
+  tasks:
+    - name: Init NFS Folders
+      block:
+      - name: Creates directory {{ pv_root_folder }}/bai-pv
+        file:
+          path: "{{ pv_root_folder }}/bai-pv"
+          owner: '9999'
+          group: '9999'
+          mode: '770'
+          state: directory
+      - name: Creates directory {{ pv_root_folder }}/ek-pv-1
+        file:
+          path: "{{ pv_root_folder }}/ek-pv-1"
+          owner: '1000'
+          group: '1000'
+          mode: '770'
+          state: directory
+      - name: Creates directory {{ pv_root_folder }}/ek-pv-2
+        file:
+          path: "{{ pv_root_folder }}/ek-pv-2"
+          owner: '1000'
+          group: '1000'
+          mode: '770'
+          state: directory
+      - name: Creates directory {{ pv_root_folder }}/ek-pv-3
+        file:
+          path: "{{ pv_root_folder }}/ek-pv-3"
+          owner: '1000'
+          group: '1000'
+          mode: '770'
+          state: directory
+      - name: Creates directory {{ pv_root_folder }}/es-snapshot-pv
+        file:
+          path: "{{ pv_root_folder }}/es-snapshot-pv"
+          owner: '1000'
+          group: '1000'
+          mode: '770'
+          state: directory
+      tags:
+      - init_nfs
+
+- hosts: boot
+  remote_user: root
+  tasks:
+    - name: Install ICP CLI
+      include: tasks/install-icp-cli.yaml
+      tags:
+      - install_cli
+
+    - name: Create PV and PVC in ICP
+      block:
+      - name: Prepare pv yaml from template
+        template:
+          src: templates/pv.yaml.j2
+          dest: /root/pv.yaml
+      - name: Create PV and PVC
+        shell: |
+          kubectl create -f /root/pv.yaml
+      tags:
+      - create_pv
+      
+    - name: Create PSP in ICP
+      block:
+      - name: Prepare psp yaml from template
+        template:
+          src: templates/psp.yaml.j2
+          dest: /root/psp.yaml
+      - name: Create PSP
+        shell: |
+          kubectl apply -f /root/psp.yaml -n {{ namespace }}
+          kubectl -n {{ namespace }} create rolebinding ibm-anyuid-clustrrole-rolebinding --clusterrole=ibm-anyuid-clusterrole --group=system:serviceaccounts:{{ namespace }}
+      tags:
+      - create_psp

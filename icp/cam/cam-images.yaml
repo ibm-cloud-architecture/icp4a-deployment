@@ -1,0 +1,30 @@
+- hosts: worker
+  remote_user: root
+  tasks:
+    - name: pull cam images
+      shell: |
+        docker login {{ register_server }} -u {{ admin_name }} -p {{ admin_password }}
+        docker pull {{ register_server }}/services/icam-bpd-cds:3.1.2.1-x86_64
+        docker pull {{ register_server }}/services/icam-bpd-mariadb:3.1.2.1-x86_64
+        docker pull {{ register_server }}/services/icam-bpd-mds:3.1.2.1-x86_64
+        docker pull {{ register_server }}/services/icam-bpd-ui:3.1.2.1-x86_64
+        docker pull {{ register_server }}/services/icam-broker:3.1.2.1-x86_64
+        docker pull {{ register_server }}/services/icam-iaas:3.1.2.1-x86_64
+        docker pull {{ register_server }}/services/icam-mongo:3.1.2.1-x86_64
+        docker pull {{ register_server }}/services/icam-orchestration:3.1.2.1-x86_64
+        docker pull {{ register_server }}/services/icam-portal-ui:3.1.2.1-x86_64
+        docker pull {{ register_server }}/services/icam-provider-helm:3.1.2.1-x86_64
+        docker pull {{ register_server }}/services/icam-provider-terraform:3.1.2.1-x86_64
+        docker pull {{ register_server }}/services/icam-proxy:3.1.2.1-x86_64
+        docker pull {{ register_server }}/services/icam-service-composer-api:3.1.2.1-x86_64
+        docker pull {{ register_server }}/services/icam-service-composer-ui:3.1.2.1-x86_64
+        docker pull {{ register_server }}/services/icam-tenant-api:3.1.2.1-x86_64
+        docker pull {{ register_server }}/services/icam-ui-basic:3.1.2.1-x86_64
+        docker pull {{ register_server }}/services/icam-ui-connections:3.1.2.1-x86_64
+        docker pull {{ register_server }}/services/icam-ui-instances:3.1.2.1-x86_64
+        docker pull {{ register_server }}/services/icam-ui-templates:3.1.2.1-x86_64
+        
+        # Pull the timeout fix image
+        docker pull {{ register_server }}/services/icam-iaas:3.1.2.1-x86_64-fix-timeout
+      tags:
+      - docker_images
